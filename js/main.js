@@ -10,8 +10,37 @@ const { lerp, smoothstep, degToRad } = THREE.MathUtils;
 
 // ---------- renderer, scene, camera ----------
 
+// Quality tiers. Phones get 1K textures, no decorative lamps and a lighter finishing pass;
+// every tier then adapts its render resolution to keep the frame rate up.
+const UA = navigator.userAgent;
+const coarse = matchMedia('(pointer: coarse)').matches;
+const isPhone = /iPhone|Android.+Mobile/.test(UA) || (coarse && Math.min(screen.width, screen.height) < 820);
+const isTablet = !isPhone && (/iPad|Android/.test(UA) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(UA)));
+const TIER = RECORD ? 'high' : isPhone ? 'low' : isTablet ? 'mid' : 'high';
+const Q = {
+  high: { dprMax: 2, dprMin: 1, msaa: 4, shadow: 4096, ssr: true, shafts: true, taps: 12, dof: true, lamps: true, tex: 'assets/tex', aniso: 8, chroma: 0.0012 },
+  mid: { dprMax: 1.5, dprMin: 0.85, msaa: 2, shadow: 2048, ssr: false, shafts: true, taps: 6, dof: false, lamps: true, tex: 'assets/tex1k', aniso: 4, chroma: 0.0008 },
+  low: { dprMax: 1.25, dprMin: 0.7, msaa: 2, shadow: 2048, ssr: false, shafts: false, taps: 4, dof: false, lamps: false, tex: 'assets/tex1k', aniso: 4, chroma: 0 },
+}[TIER];
+document.documentElement.dataset.tier = TIER;
+
+function unsupported() {
+  document.querySelector('.loader__text').innerHTML = 'This 3D walk needs a browser with WebGL 2<br>(Safari 15 or later, Chrome, Edge or Firefox).';
+  document.querySelector('.loader__line').style.display = 'none';
+}
+
 const canvas = document.getElementById('gl');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+} catch (e) {
+  unsupported();
+  throw e;
+}
+if (!renderer.extensions.has('EXT_color_buffer_float')) {
+  unsupported();
+  throw new Error('Float render targets are not supported on this device');
+}
 renderer.localClippingEnabled = true;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -32,14 +61,15 @@ manager.onProgress = (_url, done, total) => { bar.style.width = `${Math.round((d
 manager.onError = (url) => console.warn('Could not load', url);
 const loaded = new Promise((resolve) => { manager.onLoad = resolve; });
 
-const mats = new Materials(manager, renderer.capabilities.getMaxAnisotropy());
+const mats = new Materials(manager, Math.min(renderer.capabilities.getMaxAnisotropy(), Q.aniso), Q.tex);
 mats.setPlanes('cut', planes.cut);
 mats.setPlanes('roof', planes.roof);
 
 const house = buildHouse(mats);
 scene.add(house.group);
 
-const pipeline = new Pipeline(renderer, scene, camera, planes);
+const pipeline = new Pipeline(renderer, scene, camera, planes, { msaa: Q.msaa, ssr: Q.ssr, shafts: Q.shafts, taps: Q.taps });
+pipeline.comp.uniforms.uChroma.value = Q.chroma;
 for (const m of house.meshes) pipeline.register(m);
 
 // ---------- light ----------
@@ -50,7 +80,7 @@ const sun = new THREE.DirectionalLight('#ffd8ac', 6.4);
 sun.target.position.set(16, 0, 18);
 sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 70);
 sun.castShadow = true;
-sun.shadow.mapSize.set(4096, 4096);
+sun.shadow.mapSize.set(Q.shadow, Q.shadow);
 Object.assign(sun.shadow.camera, { left: -34, right: 34, top: 34, bottom: -34, near: 1, far: 160 });
 sun.shadow.bias = -0.0003;
 sun.shadow.normalBias = 0.03;
@@ -248,7 +278,7 @@ const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
 function planFrame(aspect) {
   const wide = aspect > 1.2;
-  return { H: Math.max(18.6, 23 / aspect), tx: wide ? 17 : 14.4, tz: wide ? 9.6 : 11.4 };
+  return { H: Math.max(18.6, (wide ? 23 : 21) / aspect), tx: wide ? 17 : 14.6, tz: wide ? 9.6 : 9.4 };
 }
 
 function aerialPose(a, aspect, pos, tgt) {
@@ -310,6 +340,13 @@ function targetAt(d, out) {
 }
 let simTime = 0;
 
+// On a portrait screen a fixed vertical lens leaves almost no width; widen it to match 5:4.
+function fitFov(v, aspect) {
+  if (aspect >= 1.25) return v;
+  const h = 2 * Math.atan(Math.tan(degToRad(v / 2)) * 1.25);
+  return Math.min(78, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(h / 2) / aspect)));
+}
+
 const camPos = v3(), camTgt = v3();
 const endPos = v3(), endTgt = v3(), aerPos = v3(), aerTgt = v3();
 function updateCamera(aspect) {
@@ -340,7 +377,8 @@ function updateCamera(aspect) {
     camTgt.y += hh * 0.014 * Math.sin(t * 0.45 + 2.0);
     camTgt.z += hh * 0.022 * Math.sin(t * 0.29 + 4.0);
   }
-  camera.fov = fov;
+  const fitWeight = state.fin > 0 ? smoothstep(state.aerial, 0.5, 1) : (state.d > 0 ? 1 : smoothstep(state.aerial, 0.5, 1));
+  camera.fov = lerp(fov, fitFov(fov, aspect), fitWeight);
   camera.aspect = aspect;
   camera.position.copy(camPos);
   camera.lookAt(camTgt);
@@ -444,23 +482,48 @@ function updateOverlay(w, h) {
 // ---------- frame ----------
 
 let W = 0, H = 0;
+let dprCur = Math.min(window.devicePixelRatio || 1, Q.dprMax);
+let resizeAt = 0;
 function resize() {
   W = window.innerWidth;
   H = window.innerHeight;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  renderer.setPixelRatio(dpr);
+  renderer.setPixelRatio(dprCur);
   renderer.setSize(W, H, false);
-  pipeline.setSize(W, H, dpr);
+  pipeline.setSize(W, H, dprCur);
 }
-window.addEventListener('resize', resize);
+window.addEventListener('resize', () => { resizeAt = performance.now(); });
 resize();
+
+// Width changes resize at once. Height-only changes (the iOS address bar sliding while you scroll)
+// wait until the scroll settles, so render targets are not reallocated mid-gesture.
+function checkSize(now) {
+  const iw = window.innerWidth, ih = window.innerHeight;
+  if (iw !== W || !H) return resize();
+  if (ih !== H && (Math.abs(ih - H) > 160 || now - resizeAt > 300)) resize();
+}
+
+// Adaptive resolution: step down when frames run slow, back up when there is headroom.
+let perfAcc = 0, perfN = 0, lastT = 0, good = 0;
+function adapt(now) {
+  if (lastT) { const dt = now - lastT; if (dt < 200) { perfAcc += dt; perfN++; } }
+  lastT = now;
+  if (perfN < 45) return;
+  const avg = perfAcc / perfN;
+  perfAcc = 0; perfN = 0;
+  const ceiling = Math.min(window.devicePixelRatio || 1, Q.dprMax);
+  if (avg > 24 && dprCur > Q.dprMin) { dprCur = Math.max(Q.dprMin, dprCur - 0.25); good = 0; resize(); }
+  else if (avg < 17.5 && dprCur < ceiling) { if (++good >= 3) { dprCur = Math.min(ceiling, dprCur + 0.25); good = 0; resize(); } }
+  else good = 0;
+}
 
 const clock = new THREE.Clock();
 function frame(t) {
   // A hidden pane or background tab can report a 0-px window; a 0 aspect turns the camera,
   // and with it the section planes, into NaN. Wait until there is something to draw into.
-  if (window.innerWidth !== W || window.innerHeight !== H) resize();
+  const now = performance.now();
+  checkSize(now);
   if (!W || !H) return;
+  if (!RECORD) adapt(now);
   simTime = t ?? clock.getElapsedTime();
   state.s = state.d > 0 ? knotFromDist(state.d) : 0;
   updateCamera(W / H);
@@ -494,10 +557,10 @@ function frame(t) {
   u.uExposure.value = lerp(u.uExposure.value, 1.3, smoothstep(state.s, 26.5, 28.5));
   u.uExposure.value = lerp(u.uExposure.value, 1.0, state.fin);
   // light in the air only reads indoors, where the beams have shadow around them
-  u.uShaftAmp.value = 0.42 * inside * (1 - state.fin);
+  u.uShaftAmp.value = Q.shafts ? 0.42 * inside * (1 - state.fin) : 0;
   // shallow depth of field on foot, focused where the camera is looking
   u.uFocus.value = camera.position.distanceTo(camTgt);
-  u.uDof.value = 0.3 * inside * (1 - state.fin);
+  u.uDof.value = Q.dof ? 0.3 * inside * (1 - state.fin) : 0;
   sharedUniforms.uIndoor.value = 0.5;
 
   const beauty = state.ext > 0 || state.entry > 0 || state.court > 0;
@@ -506,6 +569,13 @@ function frame(t) {
 }
 
 // ---------- start ----------
+
+// Phones skip the decorative lamps; their glowing shades and bloom still read as lit.
+if (!Q.lamps) {
+  const lamps = [];
+  scene.traverse((o) => { if (o.isPointLight) lamps.push(o); });
+  lamps.forEach((l) => l.removeFromParent());
+}
 
 // Never hang on the loader: start after 30 s even if a model or texture is slow or missing.
 const loadedOrTimeout = Promise.race([loaded, new Promise((r) => setTimeout(r, 30000))]);

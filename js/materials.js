@@ -139,9 +139,10 @@ function leafTexture() {
 }
 
 export class Materials {
-  constructor(manager, maxAniso = 8) {
+  constructor(manager, maxAniso = 8, texDir = 'assets/tex') {
     this.loader = new THREE.TextureLoader(manager);
     this.maxAniso = maxAniso;
+    this.texDir = texDir;
     this.images = {};
     this.cache = {};
     this.planes = {}; // name -> [THREE.Plane]
@@ -150,7 +151,7 @@ export class Materials {
   _tex(name, kind, srgb, size) {
     const key = name + kind;
     if (!this.images[key]) {
-      const t = this.loader.load(`assets/tex/${name}_${kind}.jpg`);
+      const t = this.loader.load(`${this.texDir}/${name}_${kind}.jpg`);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = this.maxAniso;
       if (srgb) t.colorSpace = THREE.SRGBColorSpace;

@@ -19,7 +19,7 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
-body { overflow-x: hidden; }
+body { overflow-x: hidden; overscroll-behavior: none; }
 
 #gl {
   position: fixed;
@@ -259,8 +259,14 @@ body.is-record *, body.is-record *::after { transition: none !important; }
 
 @media (max-width: 720px) {
   .stops { display: none; }
-  .sheet { left: var(--gutter); right: var(--gutter); bottom: auto; top: calc(var(--gutter) + 72px); padding: 8px 10px; }
-  .sheet__north svg { width: 30px; height: 30px; }
+  .sheet { display: none; }
+  .brand__name { font-size: 28px; }
+  .brand__sub { font-size: 9px; }
+  .room__name { font-size: 8.5px; letter-spacing: 0.12em; }
+  .room__dim { display: none; }
+  #dims text { font-size: 8px; }
   .caption { right: var(--gutter); }
-  .caption__text { font-size: 14px; }
+  .caption__title { font-size: 34px; }
+  .caption__text { font-size: 13.5px; }
+  .end { font-size: 8.5px; letter-spacing: 0.1em; }
 }

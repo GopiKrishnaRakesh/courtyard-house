@@ -239,6 +239,7 @@ uniform mat4 uCamWorld;
 uniform mat4 uPrevVP;
 uniform vec2 uTanHalf;
 uniform float uShutter;
+uniform float uTaps;
 uniform float uFocus;
 uniform float uDof;
 uniform float uShafts;
@@ -343,14 +344,15 @@ void main() {
     float coc = clamp(abs(zc - uFocus) / max(zc, 0.1) * uDof, 0.0, 1.0) * (7.0 / uRes.y) * uPx;
     vec3 hdr = vec3(0.0);
     for (int k = 0; k < 12; k++) {
+      if (float(k) >= uTaps) break;
       float fk = float(k) + 0.5;
       float a = fk * 2.39996;
-      vec2 o = vec2(cos(a), sin(a)) * sqrt(fk / 12.0) * coc * vec2(uRes.y / uRes.x, 1.0);
-      vec2 uv = vUv + o + vel * (fk / 12.0 - 0.5);
+      vec2 o = vec2(cos(a), sin(a)) * sqrt(fk / uTaps) * coc * vec2(uRes.y / uRes.x, 1.0);
+      vec2 uv = vUv + o + vel * (fk / uTaps - 0.5);
       vec2 cd = (uv - 0.5) * uChroma;
       hdr += vec3(texture2D(tBeauty, uv + cd).r, texture2D(tBeauty, uv).g, texture2D(tBeauty, uv - cd).b);
     }
-    hdr /= 12.0;
+    hdr /= uTaps;
     vec4 sr = texture2D(tSSR, vUv);
     hdr = mix(hdr, sr.rgb, clamp(sr.a * uSSR, 0.0, 1.0));
     float aoFar = 1.0 - smoothstep(60.0, 160.0, c.b);
@@ -392,7 +394,8 @@ function aoKernel() {
 }
 
 export class Pipeline {
-  constructor(renderer, scene, camera, planes) {
+  constructor(renderer, scene, camera, planes, opts = {}) {
+    this.opts = { msaa: 4, ssr: true, shafts: true, taps: 12, ...opts };
     this.renderer = renderer;
     this.scene = scene;
     this.camera = camera;
@@ -409,7 +412,7 @@ export class Pipeline {
     this.infoCache = {};
 
     const lin = { type: THREE.HalfFloatType, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter };
-    this.beautyRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    this.beautyRT = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: this.opts.msaa });
     this.infoRT = new THREE.WebGLRenderTarget(1, 1, {
       type: THREE.FloatType, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: true,
     });
@@ -449,11 +452,12 @@ export class Pipeline {
       tBloom2: { value: this.b2RT[0].texture },
       tShaft: { value: this.shRT[0].texture },
       tSSR: { value: this.ssrRT[0].texture },
-      uSSR: { value: 0.55 },
+      uSSR: { value: this.opts.ssr ? 0.55 : 0.0 },
       uCamWorld: { value: new THREE.Matrix4() },
       uPrevVP: { value: new THREE.Matrix4() },
       uTanHalf: { value: new THREE.Vector2() },
       uShutter: { value: 0.5 },
+      uTaps: { value: this.opts.taps },
       uFocus: { value: 5.0 },
       uDof: { value: 0.0 },
       uShafts: { value: 0.03 },
@@ -588,7 +592,7 @@ export class Pipeline {
       this.blur(this.aoRT, 1);
 
       const sun = this.sun;
-      if (sun && sun.shadow.map) {
+      if (this.opts.shafts && sun && sun.shadow.map) {
         const su = this.mShaft.uniforms;
         su.tShadow.value = sun.shadow.map.texture;
         su.uShadowMat.value.copy(sun.shadow.matrix);
@@ -599,11 +603,13 @@ export class Pipeline {
         this.blur(this.shRT, 1.2);
       }
 
-      const ssr = this.mSSR.uniforms;
-      ssr.uTanHalf.value.set(t * camera.aspect, t);
-      ssr.uCamWorld.value.copy(camera.matrixWorld);
-      this.pass(this.mSSR, this.ssrRT[0]);
-      this.blur(this.ssrRT, 1.0);
+      if (this.opts.ssr) {
+        const ssr = this.mSSR.uniforms;
+        ssr.uTanHalf.value.set(t * camera.aspect, t);
+        ssr.uCamWorld.value.copy(camera.matrixWorld);
+        this.pass(this.mSSR, this.ssrRT[0]);
+        this.blur(this.ssrRT, 1.0);
+      }
 
       this.mBright.uniforms.uExposure.value = this.comp.uniforms.uExposure.value;
       this.pass(this.mBright, this.b1RT[0]);
