@@ -1,0 +1,23 @@
+# Hostinger (Apache / LiteSpeed) settings for the 3D site
+
+# Types the server may not know: glTF models, their binary buffers, the HDR sky
+AddType model/gltf+json .gltf
+AddType application/octet-stream .bin .hdr
+
+# Compress text and model data
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript model/gltf+json application/octet-stream
+</IfModule>
+
+# Textures and models rarely change: let browsers keep them; always revalidate the page and code
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType image/jpeg "access plus 30 days"
+  ExpiresByType image/png "access plus 30 days"
+  ExpiresByType model/gltf+json "access plus 30 days"
+  ExpiresByType application/octet-stream "access plus 30 days"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 hour"
+  ExpiresByType application/javascript "access plus 1 hour"
+  ExpiresByType text/javascript "access plus 1 hour"
+</IfModule>

@@ -1,0 +1,8 @@
+# rendered videos (large, not part of the site)
+recordings/
+# reference image and local tool config
+plan.jpg
+.claude/
+# system and tooling
+.DS_Store
+node_modules/

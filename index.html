@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>My House</title>
+  <meta name="description" content="A courtyard house, drawn and then built as you scroll.">
+  <link rel="icon" href="data:,">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/lenis@1.1.13/dist/lenis.css">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="gl" aria-hidden="true"></canvas>
+
+  <!-- Annotations anchored to the 3D model: room names, dimension strings -->
+  <div id="annot" aria-hidden="true">
+    <svg id="dims"></svg>
+    <div id="labels"></div>
+  </div>
+
+  <header class="brand">
+    <div class="brand__name">My House</div>
+    <div class="brand__sub">A courtyard house &middot; 710 m&sup2; &middot; one storey</div>
+  </header>
+
+  <aside class="sheet" aria-label="Drawing title block">
+    <div class="sheet__north" aria-hidden="true">
+      <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="15" /><path d="M20 4 L25 24 L20 21 L15 24 Z" /><text x="20" y="38">N</text></svg>
+    </div>
+    <dl class="sheet__rows">
+      <div><dt>Project</dt><dd>My House</dd></div>
+      <div><dt>Drawing</dt><dd>Ground floor plan</dd></div>
+      <div><dt>Cut</dt><dd>+1.20 m above floor</dd></div>
+      <div><dt>Scale</dt><dd>1:100</dd></div>
+      <div><dt>Sheet</dt><dd>A&ndash;101</dd></div>
+    </dl>
+  </aside>
+
+  <div class="cue" aria-hidden="true"><span>Scroll to enter</span><i></i></div>
+
+  <nav class="stops" aria-label="Rooms">
+    <ol>
+      <li data-stop="plan" class="is-active">Plan</li>
+      <li data-stop="entry">Entry</li>
+      <li data-stop="living">Living</li>
+      <li data-stop="dining">Dining</li>
+      <li data-stop="kitchen">Kitchen</li>
+      <li data-stop="bedroom">Bedroom</li>
+      <li data-stop="bath">Bath</li>
+    </ol>
+  </nav>
+
+  <section class="caption" id="cap-entry" aria-live="polite">
+    <div class="caption__num">01</div>
+    <h2 class="caption__title">Entry hall</h2>
+    <p class="caption__meta">8.0 &times; 8.0 m &middot; 3.8 m ceiling &middot; limestone, white oak</p>
+    <p class="caption__text">A glass wall stops you at the water. Late sun clears the west roof and lands on the far side of the courtyard.</p>
+  </section>
+
+  <section class="caption" id="cap-living" aria-live="polite">
+    <div class="caption__num">02</div>
+    <h2 class="caption__title">Living room</h2>
+    <p class="caption__meta">10.0 &times; 18.0 m &middot; 3.8 m ceiling &middot; white oak, linen, travertine</p>
+    <p class="caption__text">Fifteen metres of west glass. At this hour the sun lies flat across the oak and climbs the backs of the sofas.</p>
+  </section>
+
+  <section class="caption" id="cap-dining" aria-live="polite">
+    <div class="caption__num">03</div>
+    <h2 class="caption__title">Dining</h2>
+    <p class="caption__meta">10.0 &times; 8.0 m &middot; seats ten &middot; white oak, linen, brass</p>
+    <p class="caption__text">Garden glass to the north, the courtyard to the south. One table for ten under a single line of brass.</p>
+  </section>
+
+  <section class="caption" id="cap-kitchen" aria-live="polite">
+    <div class="caption__num">04</div>
+    <h2 class="caption__title">Kitchen</h2>
+    <p class="caption__meta">12.0 &times; 8.0 m &middot; 4.6 m island &middot; travertine, white oak, brass</p>
+    <p class="caption__text">One long block of travertine under three glass globes. Everything else disappears into oak.</p>
+  </section>
+
+  <section class="caption" id="cap-bedroom" aria-live="polite">
+    <div class="caption__num">05</div>
+    <h2 class="caption__title">Primary bedroom</h2>
+    <p class="caption__meta">10.0 &times; 10.0 m &middot; glass on two sides &middot; linen, white oak</p>
+    <p class="caption__text">Courtyard to the west, garden to the east. The last sun crosses the water and comes in low across the floor.</p>
+  </section>
+
+  <section class="caption" id="cap-bath" aria-live="polite">
+    <div class="caption__num">06</div>
+    <h2 class="caption__title">Bath</h2>
+    <p class="caption__meta">12.0 &times; 8.0 m &middot; skylight over the tub &middot; limestone, travertine, brass</p>
+    <p class="caption__text">A stone tub under open sky. The skylight drops a band of late sun down the far wall while the water stays in shade.</p>
+  </section>
+
+  <div class="end" aria-hidden="true">End of the walk &middot; scroll up to walk it again</div>
+
+  <div id="loader" role="status">
+    <div class="loader__line"><i id="loader-bar"></i></div>
+    <div class="loader__text">Drawing the plan</div>
+  </div>
+
+  <main id="scroll" aria-hidden="true"></main>
+
+  <script>
+    // Opened straight from disk, the browser blocks the page's modules, textures and models.
+    if (location.protocol === 'file:') {
+      document.querySelector('.loader__text').innerHTML =
+        'This page has to be served, not opened as a file.<br>In this folder run <b>npx http-server -p 8124</b> and open <b>http://localhost:8124</b>';
+      document.querySelector('.loader__line').style.display = 'none';
+    }
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
