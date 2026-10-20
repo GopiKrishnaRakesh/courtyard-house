@@ -25,6 +25,9 @@
 <body>
   <canvas id="gl" aria-hidden="true"></canvas>
 
+  <!-- Path-traced still of the current room, shown while the camera rests there -->
+  <div id="still" aria-hidden="true"><img alt=""><span class="still__tag">Cycles render</span></div>
+
   <!-- Annotations anchored to the 3D model: room names, dimension strings -->
   <div id="annot" aria-hidden="true">
     <svg id="dims"></svg>

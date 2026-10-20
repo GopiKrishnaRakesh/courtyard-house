@@ -3,6 +3,7 @@
 # Types the server may not know: glTF models, their binary buffers, the HDR sky
 AddType model/gltf+json .gltf
 AddType application/octet-stream .bin .hdr
+AddType image/webp .webp
 
 # Compress text and model data
 <IfModule mod_deflate.c>
@@ -14,6 +15,7 @@ AddType application/octet-stream .bin .hdr
   ExpiresActive On
   ExpiresByType image/jpeg "access plus 30 days"
   ExpiresByType image/png "access plus 30 days"
+  ExpiresByType image/webp "access plus 30 days"
   ExpiresByType model/gltf+json "access plus 30 days"
   ExpiresByType application/octet-stream "access plus 30 days"
   ExpiresByType text/html "access plus 0 seconds"

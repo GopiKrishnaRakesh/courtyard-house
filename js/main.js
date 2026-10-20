@@ -479,6 +479,54 @@ function updateOverlay(w, h) {
   for (const li of stopEls) li.classList.toggle('is-active', li.dataset.stop === active);
 }
 
+// ---------- path-traced stills ----------
+
+// Cycles renders of each stop (blender/render.py), from the pose the camera rests at while the
+// room's caption is up. 'land' covers windows of aspect >= 1.25, 'port' everything narrower.
+const STILLS = [['entry', 'caption'], ['living', 'caption2'], ['dining', 'caption3'], ['kitchen', 'caption4'], ['bedroom', 'caption5'], ['bath', 'caption6']];
+const STILL_FRAMES = {
+  land: { aspect: 2.4, tanHalf: Math.tan(degToRad(27.5)) * 1.109 },
+  port: { aspect: 0.8, tanHalf: Math.tan(degToRad(40)) },
+};
+const stillEl = document.getElementById('still');
+const stillImg = stillEl.querySelector('img');
+const stillCache = {};
+let stillKey = '', stillSince = 0;
+
+function stillFrame(aspect) { return aspect >= 1.25 ? 'land' : 'port'; }
+
+function preloadStills(variant) {
+  for (const [id] of STILLS) {
+    const src = `assets/renders/${id}-${variant}.webp`;
+    if (stillCache[src]) continue;
+    const im = new Image();
+    im.decoding = 'async';
+    im.src = src;
+    stillCache[src] = im;
+  }
+}
+
+function updateStill(w, h, now) {
+  if (RECORD) return;
+  const variant = stillFrame(w / h);
+  const hit = STILLS.find(([, k]) => state[k] > 0.5);
+  const src = hit ? `assets/renders/${hit[0]}-${variant}.webp` : '';
+  const im = stillCache[src];
+  const ready = im && im.complete && im.naturalWidth > 0;
+  if (src !== stillKey) { stillKey = src; stillSince = now; }
+  // wait for the scroll to settle on the stop before fading the render in
+  const on = ready && now - stillSince > 220;
+  if (on) {
+    if (stillImg.getAttribute('src') !== src) stillImg.src = src;
+    // match the live camera: scale by the ratio of the render's vertical FOV to the screen's
+    const f = STILL_FRAMES[variant];
+    const hh = h * f.tanHalf / Math.tan(degToRad(camera.fov / 2));
+    stillImg.style.height = `${hh}px`;
+    stillImg.style.width = `${hh * f.aspect}px`;
+  }
+  stillEl.classList.toggle('is-on', on);
+}
+
 // ---------- frame ----------
 
 let W = 0, H = 0;
@@ -566,6 +614,7 @@ function frame(t) {
   const beauty = state.ext > 0 || state.entry > 0 || state.court > 0;
   pipeline.render({ beauty, background: beauty ? skyTex : null, time: simTime });
   updateOverlay(W, H);
+  updateStill(W, H, now);
 }
 
 // ---------- start ----------
@@ -582,6 +631,10 @@ const loadedOrTimeout = Promise.race([loaded, new Promise((r) => setTimeout(r, 3
 const ready = Promise.all([loadedOrTimeout, document.fonts ? document.fonts.ready : Promise.resolve()]).then(() => {
   try { frame(); } catch (e) { console.error(e); }
   document.getElementById('loader').classList.add('is-done');
+  if (!RECORD) {
+    preloadStills(stillFrame(window.innerWidth / window.innerHeight));
+    window.addEventListener('resize', () => preloadStills(stillFrame(window.innerWidth / window.innerHeight)));
+  }
 });
 
 if (RECORD) {
@@ -590,6 +643,8 @@ if (RECORD) {
   window.__ready = ready.then(() => true);
   // t: seconds of film time (drives grain and handheld drift); still: no motion blur from the previous frame
   window.__seek = (p, t = 0, still = false) => { tl.progress(p); if (still) pipeline.resetHistory(); frame(t); return true; };
+  // Scene access for the Blender export and for reading the camera at each stop.
+  window.__three = { THREE, scene, camera, house, state, tl };
 } else {
   gsap.registerPlugin(ScrollTrigger);
   const lenis = new Lenis({ lerp: 0.085, smoothWheel: true });
