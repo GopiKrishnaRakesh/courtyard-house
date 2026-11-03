@@ -496,7 +496,7 @@ function stillFrame(aspect) { return aspect >= 1.25 ? 'land' : 'port'; }
 
 function preloadStills(variant) {
   for (const [id] of STILLS) {
-    const src = `assets/renders/${id}-${variant}.webp`;
+    const src = `assets/renders/${id}-${variant}.webp?v=2`;
     if (stillCache[src]) continue;
     const im = new Image();
     im.decoding = 'async';
@@ -509,7 +509,7 @@ function updateStill(w, h, now) {
   if (RECORD) return;
   const variant = stillFrame(w / h);
   const hit = STILLS.find(([, k]) => state[k] > 0.5);
-  const src = hit ? `assets/renders/${hit[0]}-${variant}.webp` : '';
+  const src = hit ? `assets/renders/${hit[0]}-${variant}.webp?v=2` : '';
   const im = stillCache[src];
   const ready = im && im.complete && im.naturalWidth > 0;
   if (src !== stillKey) { stillKey = src; stillSince = now; }
