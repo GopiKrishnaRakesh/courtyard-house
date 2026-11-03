@@ -76,7 +76,7 @@ for (const m of house.meshes) pipeline.register(m);
 
 // golden hour: 24 degrees above the horizon, west-south-west
 const SUN_DIR = new THREE.Vector3(-0.86, 0.41, 0.3).normalize();
-const sun = new THREE.DirectionalLight('#ffd8ac', 6.4);
+const sun = new THREE.DirectionalLight('#fff5e8', 4.8);
 sun.target.position.set(16, 0, 18);
 sun.position.copy(sun.target.position).addScaledVector(SUN_DIR, 70);
 sun.castShadow = true;
@@ -86,42 +86,45 @@ sun.shadow.bias = -0.0003;
 sun.shadow.normalBias = 0.03;
 scene.add(sun, sun.target);
 pipeline.sun = sun;
-scene.add(new THREE.HemisphereLight('#eef0e6', '#d8c3a6', 0.36));
+scene.add(new THREE.HemisphereLight('#f0f5fc', '#ded6c8', 0.48));
 
-const pendant = new THREE.PointLight('#ffc78c', 7, 9, 2);
+const pendant = new THREE.PointLight('#ffecd2', 4.5, 9, 2);
 pendant.position.set(17.25, 2.55, 22.4);
 scene.add(pendant);
 for (const x of [14.35, 17.65]) {
-  const l = new THREE.PointLight('#ffc27a', 1.0, 4, 2);
+  const l = new THREE.PointLight('#ffecd2', 1.0, 4, 2);
   l.position.set(x, 2.35, 26.9);
   scene.add(l);
 }
 
-const arcLamp = new THREE.PointLight('#ffc98e', 3.5, 7, 2);
+const arcLamp = new THREE.PointLight('#ffecd2', 2.5, 7, 2);
 arcLamp.position.set(3.6, 1.75, 9.1);
 scene.add(arcLamp);
-for (const [x, y, z, i] of [[24.5, 2.6, 18.7, 2.0], [27.6, 2.4, 24.0, 1.4], [2.25, 0.98, 5.15, 1.3], [6.95, 1.24, 20.95, 1.1]]) {
-  const l = new THREE.PointLight('#ffcf98', i, 5, 2);
+for (const [x, y, z, i] of [[24.5, 2.6, 18.7, 1.6], [27.6, 2.4, 24.0, 1.2], [2.25, 0.98, 5.15, 1.1], [6.95, 1.24, 20.95, 1.0]]) {
+  const l = new THREE.PointLight('#ffecd2', i, 5, 2);
   l.position.set(x, y, z);
   scene.add(l);
 }
 for (const x of [26.35, 29.65]) {
-  const l = new THREE.PointLight('#ffc27e', 1.6, 4, 2);
+  const l = new THREE.PointLight('#ffe6ca', 1.2, 4, 2);
   l.position.set(x, 1.0, 8.62);
   scene.add(l);
 }
 for (const x of [25.0, 26.2, 27.4]) {
-  const l = new THREE.PointLight('#ffcf98', 2.2, 5, 2);
+  const l = new THREE.PointLight('#ffecd2', 1.5, 5, 2);
   l.position.set(x, 2.05, 4.6);
   scene.add(l);
 }
+const fire = new THREE.PointLight('#ffa85c', 1.4, 5, 2);
+fire.position.set(9.3, 0.75, 7.05);
+scene.add(fire);
 for (const x of [14.0, 16.0]) {
-  const l = new THREE.PointLight('#ffc98e', 3, 6, 2);
+  const l = new THREE.PointLight('#ffecd2', 2.0, 6, 2);
   l.position.set(x, 1.85, 4.0);
   scene.add(l);
 }
 
-scene.fog = new THREE.Fog('#dcd2c2', 120, 460);
+scene.fog = new THREE.Fog('#ded8ce', 120, 460);
 let skyTex = null;
 new RGBELoader(manager).load('assets/hdri/sky_2k.hdr', (t) => {
   t.mapping = THREE.EquirectangularReflectionMapping;
@@ -130,8 +133,8 @@ new RGBELoader(manager).load('assets/hdri/sky_2k.hdr', (t) => {
   const pm = new THREE.PMREMGenerator(renderer);
   scene.environment = pm.fromEquirectangular(clampSun(t, 6)).texture;
   pm.dispose();
-  scene.environmentIntensity = 0.32;
-  scene.backgroundIntensity = 0.9;
+  scene.environmentIntensity = 0.5;
+  scene.backgroundIntensity = 1.0;
 });
 
 function clampSun(tex, k) {
@@ -229,37 +232,33 @@ tl.to(state, { cue: 0, duration: 0.03 }, 0.0)
   .to(state, { cut: 4.6, duration: 0.18, ease: 'power1.inOut' }, 0.12)
   .to(state, { d: () => KL[3], duration: 0.36, ease: 'sine.inOut' }, 0.26)
   .to(state, { roof: 1, duration: 0.12, ease: 'power1.inOut' }, 0.33)
-  .to(state, { ext: 1, duration: 0.17, ease: 'power1.inOut' }, 0.44)
+  .to(state, { ext: 1, duration: 0.17, ease: 'power1.inOut' }, 0.38)
+  .to(state, {
+    entry: 1, court: 1, library: 1, living: 1, dining: 1, kitchen: 1, bedroom: 1, bath: 1,
+    duration: 0.25, ease: 'power1.inOut',
+  }, 0.42)
   .to(state, { door: 1, duration: 0.1, ease: 'power2.inOut' }, 0.615)
-  .to(state, { entry: 1, duration: 0.16, ease: 'power1.inOut' }, 0.7)
   .to(state, { d: () => KL[7], duration: 0.29, ease: 'sine.inOut' }, 0.63)
-  .to(state, { court: 1, duration: 0.18, ease: 'power1.inOut' }, 0.78)
   .to(state, { caption: 1, duration: 0.05 }, 0.9)
   // checkpoint 2: entry -> library -> living room
   .to(state, { caption: 0, duration: 0.04 }, 1.0)
   .to(state, { d: () => KL[13], duration: 0.76, ease: 'sine.inOut' }, 1.02)
-  .to(state, { library: 1, duration: 0.22, ease: 'power1.inOut' }, 1.12)
-  .to(state, { living: 1, duration: 0.24, ease: 'power1.inOut' }, 1.42)
   .to(state, { caption2: 1, duration: 0.05 }, 1.8)
   // checkpoint 3: living room -> dining
   .to(state, { caption2: 0, duration: 0.04 }, 1.85)
   .to(state, { d: () => KL[17], duration: 0.58, ease: 'sine.inOut' }, 1.87)
-  .to(state, { dining: 1, duration: 0.24, ease: 'power1.inOut' }, 2.05)
   .to(state, { caption3: 1, duration: 0.05 }, 2.45)
   // checkpoint 4: dining -> kitchen
   .to(state, { caption3: 0, duration: 0.04 }, 2.5)
   .to(state, { d: () => KL[21], duration: 0.54, ease: 'sine.inOut' }, 2.52)
-  .to(state, { kitchen: 1, duration: 0.24, ease: 'power1.inOut' }, 2.7)
   .to(state, { caption4: 1, duration: 0.05 }, 3.08)
   // checkpoint 5: kitchen -> primary bedroom
   .to(state, { caption4: 0, duration: 0.04 }, 3.13)
   .to(state, { d: () => KL[25], duration: 0.55, ease: 'sine.inOut' }, 3.15)
-  .to(state, { bedroom: 1, duration: 0.26, ease: 'power1.inOut' }, 3.3)
   .to(state, { caption5: 1, duration: 0.05 }, 3.72)
   // checkpoint 6: bedroom -> bath
   .to(state, { caption5: 0, duration: 0.04 }, 3.77)
   .to(state, { d: () => KL[29], duration: 0.54, ease: 'sine.inOut' }, 3.79)
-  .to(state, { bath: 1, duration: 0.24, ease: 'power1.inOut' }, 3.94)
   .to(state, { caption6: 1, duration: 0.05 }, 4.36)
   // finale: the ceiling opens, the camera rises and lands back on the plan, now in material
   .to(state, { caption6: 0, duration: 0.04 }, 4.48)
@@ -564,6 +563,7 @@ function adapt(now) {
   else good = 0;
 }
 
+let lastCut = -1, lastRoof = -1, lastDoor = -1, firstFrame = true;
 const clock = new THREE.Clock();
 function frame(t) {
   // A hidden pane or background tab can report a 0-px window; a 0 aspect turns the camera,
@@ -584,6 +584,13 @@ function frame(t) {
   house.roof.visible = state.roof > 0.001;
   house.door.rotation.y = 1.5 * state.door;
 
+  // Only update shadow map when geometry changes, saving massive rasterization overhead during walkthrough
+  if (Math.abs(state.cut - lastCut) > 0.005 || Math.abs(state.roof - lastRoof) > 0.005 || Math.abs(state.door - lastDoor) > 0.005 || firstFrame) {
+    renderer.shadowMap.needsUpdate = true;
+    lastCut = state.cut; lastRoof = state.roof; lastDoor = state.door;
+    firstFrame = false;
+  }
+
   pipeline.zone.uExtSweep.value.w = state.ext;
   pipeline.zone.uZoneSweep.value[zoneIndex.entry].w = state.entry;
   pipeline.zone.uZoneSweep.value[zoneIndex.court].w = state.court;
@@ -598,18 +605,18 @@ function frame(t) {
   u.uSkyM.value = smoothstep(state.ext, 0.25, 0.9);
   u.uReal.value = smoothstep(state.ext, 0.3, 1.0);
   const inside = smoothstep(state.s, 4.2, 6.2);
-  // the living room is full of sun; bring exposure back down as we enter it
-  u.uExposure.value = lerp(lerp(lerp(0.95, 1.32, inside), 1.0, smoothstep(state.s, 10.5, 12.5)), 1.2, smoothstep(state.s, 14.5, 16.5));
-  u.uExposure.value = lerp(u.uExposure.value, 1.32, smoothstep(state.s, 18.5, 20.5));
-  u.uExposure.value = lerp(u.uExposure.value, 1.0, smoothstep(state.s, 22.5, 24.5));
-  u.uExposure.value = lerp(u.uExposure.value, 1.3, smoothstep(state.s, 26.5, 28.5));
+  // Match Entry hall exposure (~1.08) seamlessly across all rooms without highlight burnout
+  u.uExposure.value = lerp(lerp(lerp(0.98, 1.08, inside), 1.0, smoothstep(state.s, 10.5, 12.5)), 1.06, smoothstep(state.s, 14.5, 16.5));
+  u.uExposure.value = lerp(u.uExposure.value, 1.08, smoothstep(state.s, 18.5, 20.5));
+  u.uExposure.value = lerp(u.uExposure.value, 1.04, smoothstep(state.s, 22.5, 24.5));
+  u.uExposure.value = lerp(u.uExposure.value, 1.06, smoothstep(state.s, 26.5, 28.5));
   u.uExposure.value = lerp(u.uExposure.value, 1.0, state.fin);
   // light in the air only reads indoors, where the beams have shadow around them
-  u.uShaftAmp.value = Q.shafts ? 0.42 * inside * (1 - state.fin) : 0;
+  u.uShaftAmp.value = Q.shafts ? 0.28 * inside * (1 - state.fin) : 0;
   // shallow depth of field on foot, focused where the camera is looking
   u.uFocus.value = camera.position.distanceTo(camTgt);
-  u.uDof.value = Q.dof ? 0.3 * inside * (1 - state.fin) : 0;
-  sharedUniforms.uIndoor.value = 0.5;
+  u.uDof.value = Q.dof ? 0.22 * inside * (1 - state.fin) : 0;
+  sharedUniforms.uIndoor.value = 0.42;
 
   const beauty = state.ext > 0 || state.entry > 0 || state.court > 0;
   pipeline.render({ beauty, background: beauty ? skyTex : null, time: simTime });
@@ -647,10 +654,10 @@ if (RECORD) {
   window.__three = { THREE, scene, camera, house, state, tl };
 } else {
   gsap.registerPlugin(ScrollTrigger);
-  const lenis = new Lenis({ lerp: 0.085, smoothWheel: true });
+  const lenis = new Lenis({ lerp: 0.09, smoothWheel: true, wheelMultiplier: 0.95 });
   lenis.on('scroll', ScrollTrigger.update);
   gsap.ticker.add((t) => lenis.raf(t * 1000));
   gsap.ticker.lagSmoothing(0);
-  ScrollTrigger.create({ trigger: '#scroll', start: 'top top', end: 'bottom bottom', scrub: 1, animation: tl });
+  ScrollTrigger.create({ trigger: '#scroll', start: 'top top', end: 'bottom bottom', scrub: 0.15, animation: tl });
   ready.then(() => gsap.ticker.add(() => frame()));
 }

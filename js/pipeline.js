@@ -264,7 +264,15 @@ uniform float uGrain;
 uniform float uVignette;
 varying vec2 vUv;
 
-vec3 aces(vec3 x) { return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0); }
+// Standard ACES Filmic Tone Mapping with natural highlight rollover (never clips highlights)
+vec3 aces(vec3 x) {
+  const float a = 2.51;
+  const float b = 0.03;
+  const float c = 2.43;
+  const float d = 0.59;
+  const float e = 0.14;
+  return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
+}
 float lum(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
 float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
 float vnoise(vec2 p) {
@@ -331,7 +339,8 @@ void main() {
   draw += (hash(floor(px / uPx)) - 0.5) * 0.012;
 
   // ---- materials ----
-  float m = geo > 0.0 ? (c.a > 1.5 ? c.a - 2.0 : max(c.a, 0.0)) : uSkyM;
+  // When in 3D walkthrough (uReal > 0.05), full photorealistic rendering (zero drawing/ink/cel-shading artifacts)
+  float m = geo > 0.0 ? (uReal > 0.05 ? 1.0 : (c.a > 1.5 ? c.a - 2.0 : max(c.a, 0.0))) : (uReal > 0.05 ? 1.0 : uSkyM);
   vec3 col = draw;
   if (m > 0.0) {
     // camera motion blur (reprojected against last frame) and depth of field share one 12-tap gather
@@ -362,15 +371,11 @@ void main() {
     hdr += uShaftCol * (1.0 - exp(-texture2D(tShaft, vUv).r * uShafts)) * uShaftAmp;
     vec3 g = aces(hdr * uExposure);
     g = pow(g, vec3(1.0 / 2.2));
-    g.r *= 1.0 + uWarmth * 0.08;
-    g.b *= 1.0 - uWarmth * 0.1;
+    g = clamp((g - 0.5) * uContrast + 0.5, 0.0, 1.0);
     g = mix(vec3(lum(g)), g, uSat);
-    // split tone: cool shadows, warm highlights
-    g *= mix(vec3(0.965, 0.995, 1.05), vec3(1.035, 1.0, 0.955), smoothstep(0.15, 0.85, lum(g)));
-    g = (g - 0.5) * uContrast + 0.5;
-    g = uLift + g * (uGain - uLift);
+    g = clamp(uLift + g * (uGain - uLift), 0.0, 1.0);
     vec2 q = vUv - 0.5; q.x *= uRes.x / uRes.y;
-    g *= mix(1.0, smoothstep(1.15, 0.2, length(q)), uVignette * uReal);
+    g *= mix(1.0, smoothstep(1.2, 0.3, length(q)), uVignette * uReal);
     g += (hash(px + fract(uTime * 13.0) * 431.0) - 0.5) * uGrain;
     col = mix(draw, g, m);
   }
@@ -452,7 +457,7 @@ export class Pipeline {
       tBloom2: { value: this.b2RT[0].texture },
       tShaft: { value: this.shRT[0].texture },
       tSSR: { value: this.ssrRT[0].texture },
-      uSSR: { value: this.opts.ssr ? 0.55 : 0.0 },
+      uSSR: { value: this.opts.ssr ? 0.72 : 0.0 },
       uCamWorld: { value: new THREE.Matrix4() },
       uPrevVP: { value: new THREE.Matrix4() },
       uTanHalf: { value: new THREE.Vector2() },
@@ -468,18 +473,18 @@ export class Pipeline {
       uSkyM: { value: 0 },
       uTime: { value: 0 },
       uReal: { value: 0 },
-      uExposure: { value: 1 },
-      uAO: { value: 1.0 },
-      uBloom: { value: 0.16 },
-      uHalation: { value: 0.04 },
-      uWarmth: { value: 0.06 },
-      uSat: { value: 1.03 },
-      uContrast: { value: 1.1 },
-      uLift: { value: new THREE.Vector3(0.006, 0.006, 0.01) },
-      uGain: { value: new THREE.Vector3(1.0, 1.0, 0.985) },
-      uChroma: { value: 0.0012 },
-      uGrain: { value: 0.022 },
-      uVignette: { value: 0.32 },
+      uExposure: { value: 1.0 },
+      uAO: { value: 1.25 },
+      uBloom: { value: 0.08 },
+      uHalation: { value: 0.015 },
+      uWarmth: { value: 0.0 },
+      uSat: { value: 1.05 },
+      uContrast: { value: 1.08 },
+      uLift: { value: new THREE.Vector3(0.0, 0.0, 0.0) },
+      uGain: { value: new THREE.Vector3(1.0, 1.0, 1.0) },
+      uChroma: { value: 0.0004 },
+      uGrain: { value: 0.008 },
+      uVignette: { value: 0.18 },
     });
     this.quadScene = new THREE.Scene();
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), this.comp);
@@ -581,7 +586,6 @@ export class Pipeline {
     // beauty, ao and bloom are skipped while everything is still a drawing
     if (beauty) {
       scene.background = background;
-      renderer.shadowMap.needsUpdate = true;
       renderer.setRenderTarget(this.beautyRT);
       renderer.render(scene, camera);
       scene.background = null;

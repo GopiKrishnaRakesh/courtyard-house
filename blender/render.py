@@ -5,8 +5,8 @@
 #
 # Each stop is rendered from the exact pose the scroll camera rests at (blender/cameras.json, read
 # from the live page), in two framings the page picks between:
-#   land  2.4:1, vertical FOV widened 11% over the site's, so it covers any landscape window (aspect >= 1.25)
-#   port  0.8:1, vertical FOV 80 deg, so it covers any portrait or squarish window (aspect < 1.25)
+#   land  2.4:1 (4608x1920), vertical FOV widened 11% over the site's, so it covers any landscape window (aspect >= 1.25)
+#   port  0.8:1 (2048x2560), vertical FOV 80 deg, so it covers any portrait or squarish window (aspect < 1.25)
 
 import bpy, json, math, os, sys
 from mathutils import Vector
@@ -33,19 +33,68 @@ prefs.get_devices()
 for d in prefs.devices: d.use = d.type == 'METAL'
 scene.cycles.device = 'GPU'
 
-# Per-stop exposure (stops of light) and depth of field, tuned by eye.
+# Tune architectural lighting across the scene to match the reference Entry Hall photographic quality
+WARM_WHITE = (1.0, 0.88, 0.74)  # 3000K clean warm white for recessed lights, pendants, globes
+COZY_WHITE = (1.0, 0.82, 0.65)  # 2800K cozy warm white for bedside sconces
+
+for o in bpy.data.objects:
+    if o.type == 'LIGHT':
+        l = o.data
+        if 'Fire' in o.name:
+            l.color = (1.0, 0.58, 0.25)
+            l.energy = 12.0
+            l.shadow_soft_size = 0.35
+        elif 'Sun' in o.name:
+            l.color = (1.0, 0.96, 0.90)
+            l.energy = 4.8
+            l.angle = 0.015
+        elif 'Bedside' in o.name:
+            l.color = COZY_WHITE
+            l.energy = 7.5
+            l.shadow_soft_size = 0.18
+        elif 'Pendant' in o.name:
+            l.color = WARM_WHITE
+            l.energy = 36.0
+            l.shadow_soft_size = 0.25
+        elif 'Dining' in o.name:
+            l.color = WARM_WHITE
+            l.energy = 14.0
+            l.shadow_soft_size = 0.20
+        elif 'Globe' in o.name:
+            l.color = WARM_WHITE
+            l.energy = 12.0
+            l.shadow_soft_size = 0.18
+        elif 'Arc lamp' in o.name:
+            l.color = WARM_WHITE
+            l.energy = 18.0
+            l.shadow_soft_size = 0.22
+        elif 'Bath sconce' in o.name:
+            l.color = WARM_WHITE
+            l.energy = 8.0
+            l.shadow_soft_size = 0.15
+        elif 'Portal' in o.name:
+            l.color = WARM_WHITE
+            l.energy = 10.0
+            l.shadow_soft_size = 0.18
+        else:
+            l.color = WARM_WHITE
+            l.energy = min(l.energy, 14.0)
+            l.shadow_soft_size = 0.20
+
+# Per-stop exposure (stops of light), calibrated to match the Entry Hall benchmark
 LOOK = {
     'aerial':   dict(ev=0.0, fstop=None),
-    'exterior': dict(ev=0.1, fstop=5.6),
-    'entry':    dict(ev=0.7, fstop=4.0),
-    'living':   dict(ev=0.4, fstop=4.0),
-    'dining':   dict(ev=0.7, fstop=4.0),
-    'kitchen':  dict(ev=0.7, fstop=4.0),
-    'bedroom':  dict(ev=0.6, fstop=4.0),
-    'bath':     dict(ev=0.8, fstop=4.0),
+    'exterior': dict(ev=0.05, fstop=None),
+    'entry':    dict(ev=0.45, fstop=None),
+    'living':   dict(ev=-0.08, fstop=None),
+    'dining':   dict(ev=0.35, fstop=None),
+    'kitchen':  dict(ev=0.35, fstop=None),
+    'bedroom':  dict(ev=0.25, fstop=None),
+    'bath':     dict(ev=0.35, fstop=None),
 }
-LAND = dict(w=2880, h=1200)
-PORT = dict(w=1440, h=1800, vfov=80.0)
+# sized for 2x screens: the page shows a landscape still ~1.11x the window height
+LAND = dict(w=4608, h=1920)
+PORT = dict(w=2048, h=2560, vfov=80.0)
 
 cam = scene.camera
 deps = bpy.context.evaluated_depsgraph_get()
@@ -83,7 +132,7 @@ for stop in stops:
         scene.render.resolution_y = int(r['h'] * scale)
         scene.render.resolution_percentage = 100
         scene.render.image_settings.file_format = 'WEBP'
-        scene.render.image_settings.quality = 86
+        scene.render.image_settings.quality = 90
         scene.render.filepath = os.path.join(out_dir, f'{stop}-{v}.webp')
         print('render', stop, v, scene.render.resolution_x, 'x', scene.render.resolution_y, flush=True)
         bpy.ops.render.render(write_still=True)

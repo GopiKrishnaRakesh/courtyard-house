@@ -35,7 +35,7 @@ cd blender && npm i playwright && cd ..
 node blender/export.mjs /tmp/house-dump && cp /tmp/house-dump/cameras.json blender/
 # 2. build blender/house.blend: Cycles materials from assets/tex, golden-hour sun, sky, interior lamps
 blender -b -P blender/build.py -- /tmp/house-dump
-# 3. render every stop, landscape (2880x1200) and portrait (1440x1800), to assets/renders/*.webp
+# 3. render every stop, landscape (4608x1920) and portrait (2048x2560), sized for 2x screens, to assets/renders/*.webp
 blender -b blender/house.blend -P blender/render.py
 ```
 

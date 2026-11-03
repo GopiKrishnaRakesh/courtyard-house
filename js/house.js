@@ -282,7 +282,7 @@ function bookStack(B, x, y, z, rot, n = 3) {
 }
 
 // Fluted (reeded) oak: thin half-buried rods across a cabinet face.
-function fluted(B, axis, fixed, a0, a1, y0, y1, pitch = 0.028) {
+function fluted(B, axis, fixed, a0, a1, y0, y1, pitch = 0.028, o = {}) {
   const parts = [];
   const n = Math.floor((a1 - a0) / pitch);
   for (let i = 0; i < n; i++) {
@@ -291,7 +291,7 @@ function fluted(B, axis, fixed, a0, a1, y0, y1, pitch = 0.028) {
     if (axis === 'x') g.translate(a, (y0 + y1) / 2, fixed); else g.translate(fixed, (y0 + y1) / 2, a);
     parts.push(g);
   }
-  B.add(mergeGeometries(parts), 'oakVeneer');
+  B.add(mergeGeometries(parts), 'oakVeneer', o);
 }
 
 // Open oak shelving against a wall, filled with books (merged per colour to keep draw calls low).
@@ -341,10 +341,14 @@ function diningChair(B, x, z, rot) {
   B.at(x, z, rot, () => {
     for (const [lx, lz] of [[-0.19, -0.17], [0.19, -0.17], [-0.19, 0.19], [0.19, 0.19]]) B.cy(lx, 0, lz, 0.016, 0.024, 0.42, 'oakVeneer', { seg: 12 });
     B.rb(0, 0.4, 0.02, 0.5, 0.1, 0.48, 0.045, 'linen');
-    for (let i = 0; i < 7; i++) {
-      const a = Math.PI - 0.85 + (i * 1.7) / 6;
-      B.rb(Math.sin(a) * 0.25, 0.5, Math.cos(a) * 0.25 + 0.04, 0.13, 0.34, 0.06, 0.025, 'linen', { rot: a });
-    }
+    // barrel back: an arc of upholstery wrapping the seat, extruded upward with soft rounded edges
+    const s = new THREE.Shape();
+    const a0 = Math.PI / 2 - 1.05, a1 = Math.PI / 2 + 1.05;
+    s.absarc(0, -0.03, 0.255, a0, a1, false);
+    s.absarc(0, -0.03, 0.205, a1, a0, true);
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.3, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.018, bevelSegments: 4, curveSegments: 28 });
+    g.rotateX(-Math.PI / 2);
+    B.geo(g, 'linen', { y: 0.5 });
   });
 }
 
@@ -357,6 +361,24 @@ function curtain(B, x, z0, z1, h = 3.7) {
   g.computeVertexNormals();
   g.rotateY(Math.PI / 2);
   B.geo(g, 'sheer', { x, y: h / 2 + 0.03, z: (z0 + z1) / 2, cast: false, clip: true, kind: 2 });
+}
+
+// The same pleated sheer, hung along a run of glass that runs east-west.
+function curtainX(B, z, x0, x1, h = 3.7) {
+  const w = x1 - x0;
+  const g = new THREE.PlaneGeometry(w, h, Math.round(w * 40), 1);
+  const p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) p.setZ(i, Math.sin(p.getX(i) * 31.4) * 0.035);
+  g.computeVertexNormals();
+  B.geo(g, 'sheer', { x: (x0 + x1) / 2, y: h / 2 + 0.03, z, cast: false, clip: true, kind: 2 });
+}
+
+// Trimless downlights: a glowing disc in a dark ring, flush with the ceiling.
+function downlights(B, xs, zs) {
+  for (const x of xs) for (const z of zs) {
+    B.geo(new THREE.CircleGeometry(0.055, 32).rotateX(Math.PI / 2), 'lacquer', { x, y: WALL_H - 0.004, z, clip: true, kind: 2, cast: false });
+    B.geo(new THREE.CircleGeometry(0.034, 32).rotateX(Math.PI / 2), 'ledGlow', { x, y: WALL_H - 0.006, z, clip: true, kind: 2, cast: false });
+  }
 }
 
 // Freestanding tub: an oval lathe shell with water inside.
@@ -421,7 +443,10 @@ function bed(B, x, z, rot) {
   B.at(x, z, rot, () => {
     B.rb(0, 0, 0.05, 2.1, 0.3, 2.25, 0.03, 'oakVeneer');
     B.rb(0, 0.3, 0.07, 2.0, 0.26, 2.1, 0.08, 'linen');
-    B.rb(0, 0.56, 0.45, 2.04, 0.05, 1.45, 0.02, 'linenWarm');
+    B.rb(0, 0.5, 0.32, 2.12, 0.13, 1.64, 0.06, 'linen'); // duvet, falling past the mattress edge
+    B.rb(0, 0.55, -0.42, 2.1, 0.11, 0.34, 0.055, 'linen'); // folded-back top
+    B.rb(0, 0.6, 0.8, 2.18, 0.045, 0.6, 0.022, 'linenWarm'); // throw across the foot
+    B.rb(0, 0.3, 1.11, 2.18, 0.33, 0.03, 0.014, 'linenWarm');
     B.rb(-0.5, 0.56, -0.78, 0.8, 0.2, 0.42, 0.09, 'linen', { rot: 0.04 });
     B.rb(0.5, 0.56, -0.78, 0.8, 0.2, 0.42, 0.09, 'linen', { rot: -0.04 });
     B.rb(-0.42, 0.6, -0.5, 0.6, 0.16, 0.36, 0.07, 'linenWarm', { rot: 0.1 });
@@ -442,7 +467,7 @@ function bed(B, x, z, rot) {
 
 // Tree: tube trunk and branches; canopy of leaf cards with normals bent outward
 // from each cluster centre so the foliage shades like a volume.
-function tree(B, x, z, s, seed = 1, leafScale = 1) {
+function tree(B, x, z, s, seed = 1, leafScale = 1, clip = null) {
   let k = seed * 7919 + 13;
   const rnd = () => { k = (k * 16807) % 2147483647; return (k % 100000) / 100000; };
   B.at(x, z, 0, () => {
@@ -450,14 +475,14 @@ function tree(B, x, z, s, seed = 1, leafScale = 1) {
       new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.14 * s, 0.7 * s, 0.05 * s),
       new THREE.Vector3(-0.1 * s, 1.4 * s, 0.12 * s), new THREE.Vector3(0.05 * s, 2.0 * s, -0.05 * s),
     ]);
-    B.geo(new THREE.TubeGeometry(trunk, 24, 0.13 * s, 10, false), 'bark');
+    B.geo(new THREE.TubeGeometry(trunk, 24, 0.13 * s, 10, false), 'bark', { clip });
     const top = new THREE.Vector3(0.05 * s, 2.0 * s, -0.05 * s);
     const clusters = [];
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2 + rnd() * 0.8;
       const tip = new THREE.Vector3(Math.cos(a) * 1.15 * s, (2.6 + rnd() * 0.9) * s, Math.sin(a) * 1.15 * s);
       const c = new THREE.CatmullRomCurve3([top, top.clone().lerp(tip, 0.5).add(new THREE.Vector3(0, 0.25 * s, 0)), tip]);
-      B.geo(new THREE.TubeGeometry(c, 12, 0.05 * s, 8, false), 'bark');
+      B.geo(new THREE.TubeGeometry(c, 12, 0.05 * s, 8, false), 'bark', { clip });
       clusters.push({ c: tip, r: (0.85 + rnd() * 0.35) * s });
     }
     clusters.push({ c: new THREE.Vector3(0, 3.5 * s, 0), r: 1.0 * s });
@@ -480,7 +505,7 @@ function tree(B, x, z, s, seed = 1, leafScale = 1) {
         cards.push(g);
       }
     }
-    B.geo(mergeGeometries(cards), 'leaves', { keepUV: true, kind: 3 });
+    B.geo(mergeGeometries(cards), 'leaves', { keepUV: true, kind: 3, clip });
   });
 }
 
@@ -571,12 +596,29 @@ function buildFurniture(B) {
     B.geo(new THREE.CircleGeometry(0.2, 32).rotateX(Math.PI / 2), 'lampGlow', { x: 1.6, y: 1.9, z: -3.0, clip: true, kind: 2, cast: false });
   });
   B.cy(9.0, 0, 3.4, 0.22, 0.22, 0.55, 'oakVeneer');
+  // fireplace: floor-to-ceiling travertine on the solid bay of the courtyard wall, a long low hearth
+  B.box(9.74, 0, 6.0, 9.9, WALL_H - 0.01, 8.08, 'travertine', { clip: true, kind: 1 });
+  B.box(9.71, 0.42, 6.32, 9.745, 0.94, 7.76, 'blackStone', { clip: true, kind: 2, cast: false }); // firebox
+  B.box(9.70, 0.46, 6.42, 9.715, 0.53, 7.66, 'fireGlow', { cast: false }); // burner line
+  B.box(9.705, 0.53, 6.42, 9.712, 0.72, 7.66, 'fireGlow', { cast: false, info: false }); // flame sheet
+  B.box(9.02, 0, 5.7, 9.74, 0.32, 8.08, 'travertine', { cast: true });
+  bookStack(B, 9.4, 0.32, 5.98, 0.15, 3);
+  B.cy(1.55, 0, 2.95, 0.42, 0.34, 0.5, 'travertine', { seg: 48 }); // planter
+  tree(B, 1.55, 2.95, 0.6, 31, 0.62, 'cut');
 
   // sheer curtains gathered at the ends of the big glass runs
-  curtain(B, 0.38, 1.55, 2.45);
-  curtain(B, 0.38, 15.55, 16.45);
-  curtain(B, 31.62, 9.05, 9.85);
-  curtain(B, 31.62, 16.15, 16.95);
+  curtain(B, 0.38, 1.55, 2.85);
+  curtain(B, 0.38, 15.15, 16.45);
+  curtain(B, 31.62, 9.05, 10.3);
+  curtain(B, 31.62, 15.7, 16.95);
+  curtainX(B, 0.38, 7.25, 8.45);
+  // trimless downlights
+  downlights(B, [2.6, 7.0], [3.2, 7.4, 11.6, 15.6]);
+  downlights(B, [12.2, 17.8], [1.8, 6.2]);
+  downlights(B, [21.4, 30.8], [1.6, 6.8]);
+  downlights(B, [24.2, 30.4], [11.2, 15.8]);
+  downlights(B, [13.4, 19.0], [19.6, 25.0]);
+  downlights(B, [21.6, 24.6], [20.2, 24.4]);
   // recessed LED lines in the ceilings
   const led = (x0, z0, x1, z1) => B.box(x0, WALL_H - 0.02, z0, x1, WALL_H - 0.005, z1, 'ledGlow', { clip: true, kind: 2, cast: false });
   led(9.42, 0.6, 9.47, 17.4);
@@ -594,8 +636,8 @@ function buildFurniture(B) {
     diningChair(B, x, 3.0, 0);
     diningChair(B, x, 5.0, Math.PI);
   }
-  diningChair(B, 12.45, 4, -Math.PI / 2);
-  diningChair(B, 17.55, 4, Math.PI / 2);
+  diningChair(B, 12.45, 4, Math.PI / 2);
+  diningChair(B, 17.55, 4, -Math.PI / 2);
   B.box(12.0, 0, 0.25, 18.0, 0.5, 0.75, 'oakVeneer'); // low sideboard under the glazing
   // a single brass line over the table, hung on two rods
   B.box(13.4, 1.95, 3.97, 16.6, 2.0, 4.03, 'brass', { clip: true, kind: 2 });
@@ -606,7 +648,13 @@ function buildFurniture(B) {
   B.at(26.2, 4.6, 0, () => {
     B.rb(0, 0, 0, 4.4, 0.86, 1.2, 0.01, 'oakVeneer');
     B.rb(0, 0.86, 0, 4.6, 0.06, 1.3, 0.01, 'travertine');
+    for (const sx of [-1, 1]) B.rb(sx * 2.27, 0, 0, 0.06, 0.88, 1.3, 0.008, 'travertine'); // waterfall ends
   });
+  // travertine splashback, wrapping the window
+  B.box(20.6, 0.94, 0.2, 31.15, 1.05, 0.23, 'travertine', { cast: false });
+  B.box(20.6, 1.05, 0.2, 22.45, 2.62, 0.23, 'travertine', { clip: true, kind: 1, cast: false });
+  B.box(29.55, 1.05, 0.2, 31.15, 2.62, 0.23, 'travertine', { clip: true, kind: 1, cast: false });
+  bookStack(B, 24.45, 0.92, 4.95, 0.4, 2);
   for (let i = 0; i < 4; i++) B.at(24.6 + i * 1.07, 5.75, 0, () => {
     B.cy(0, 0, 0, 0.03, 0.03, 0.7, 'brass');
     B.cy(0, 0.7, 0, 0.21, 0.21, 0.06, 'linenWarm');
@@ -637,11 +685,12 @@ function buildFurniture(B) {
   bed(B, 28.0, 9.4, 0);
   bookStack(B, 26.25, 0.5, 8.75, 0.3, 2);
   bookStack(B, 29.8, 0.5, 8.75, -0.2, 3);
-  B.box(26.6, 1.55, 8.1, 29.4, 3.05, 8.15, 'oakVeneer', { clip: true, kind: 2 }); // frame
-  B.box(26.66, 1.61, 8.15, 29.34, 2.99, 8.17, 'rug', { clip: true, kind: 2, cast: false }); // canvas
-  B.geo(new THREE.CircleGeometry(0.42, 64), 'blackStone', { x: 27.55, y: 2.36, z: 8.175, clip: true, kind: 2, cast: false });
-  B.box(28.25, 1.85, 8.17, 28.95, 2.75, 8.18, 'travertine', { clip: true, kind: 2, cast: false });
-  B.box(26.95, 1.86, 8.17, 28.95, 1.88, 8.185, 'brass', { clip: true, kind: 2, cast: false });
+  fluted(B, 'x', 8.13, 24.5, 31.85, 0.0, WALL_H - 0.01, 0.04, { clip: true, kind: 1 });
+  B.box(26.6, 1.55, 8.15, 29.4, 3.05, 8.2, 'oakVeneer', { clip: true, kind: 2 }); // frame
+  B.box(26.66, 1.61, 8.2, 29.34, 2.99, 8.22, 'rug', { clip: true, kind: 2, cast: false }); // canvas
+  B.geo(new THREE.CircleGeometry(0.42, 64), 'blackStone', { x: 27.55, y: 2.36, z: 8.225, clip: true, kind: 2, cast: false });
+  B.box(28.25, 1.85, 8.22, 28.95, 2.75, 8.23, 'travertine', { clip: true, kind: 2, cast: false });
+  B.box(26.95, 1.86, 8.22, 28.95, 1.88, 8.235, 'brass', { clip: true, kind: 2, cast: false });
   // reading corner by the garden glass
   B.cy(30.55, 0, 15.25, 0.26, 0.26, 0.48, 'travertine');
   for (const x of [26.35, 29.65]) B.cy(x, 0.82, 8.62, 0.09, 0.09, 0.03, 'lampGlow', { cast: false });
@@ -649,6 +698,11 @@ function buildFurniture(B) {
 
   // ---- bath (x20-32, z18-26) ----
   tub(B, 27.6, 23.9, 0);
+  B.rb(28.05, 0.6, 23.9, 0.22, 0.025, 1.05, 0.006, 'oakVeneer');
+  for (const [dz, h] of [[-0.12, 0.14], [0.02, 0.09]]) {
+    B.cy(28.05, 0.625, 23.9 + dz, 0.035, 0.035, h, 'porcelain', { seg: 24 });
+    B.cy(28.05, 0.625 + h, 23.9 + dz, 0.006, 0.006, 0.02, 'lampGlow', { seg: 8, cast: false });
+  }
   B.box(22.4, 0, 18.15, 26.6, 0.85, 18.75, 'oakVeneer');
   fluted(B, 'x', 18.75, 22.4, 26.6, 0.04, 0.84);
   for (let i = 0; i < 3; i++) B.rb(30.9, 0.45 + i * 0.07, 23.4, 0.45, 0.07, 0.32, 0.03, i === 1 ? 'linenWarm' : 'linen');
@@ -660,7 +714,19 @@ function buildFurniture(B) {
   for (let i = 0; i < 6; i++) {
     const a = 24.6 + i * 1.2 + 0.004, b = 24.6 + (i + 1) * 1.2 - 0.004;
     for (const [y0, y1] of [[0.004, 0.896], [0.904, 1.796]]) B.box(a, y0, 25.72, Math.min(b, 31.79), y1, 25.8, 'limestone', { clip: true, kind: 1 });
+    // above the sill the stone carries on to the ceiling, around the window (x 26-30, up to 3.2 m)
+    for (const [y0, y1] of [[1.804, 2.496], [2.504, 3.196], [3.204, 3.79]]) {
+      const lo = Math.min(b, 31.79);
+      if (y1 <= 3.2 && a < 30 && lo > 26) continue;
+      B.box(a, y0, 25.72, lo, y1, 25.8, 'limestone', { clip: true, kind: 1 });
+    }
   }
+  // brass wall lights on the stone, a linen bath mat, the stool dressed with a vase
+  for (const x of [25.3, 31.0]) {
+    B.box(x - 0.05, 1.9, 25.62, x + 0.05, 2.35, 25.72, 'brass', { clip: true, kind: 2 });
+    B.box(x - 0.035, 1.93, 25.6, x + 0.035, 2.32, 25.62, 'lampGlow', { clip: true, kind: 2, cast: false });
+  }
+  rug(B, 26.9, 22.55, 28.3, 23.2, 'linen');
   // two basins, taps and a mirror over the vanity
   for (const x of [23.4, 25.6]) {
     B.cy(x, 0.9, 18.47, 0.2, 0.16, 0.13, 'porcelain', { seg: 48 });
@@ -731,13 +797,16 @@ export const MODEL_PLACEMENTS = [
   { id: 'potted_plant_02', at: [30.9, 0.94, 3.0], height: 0.7, rot: 0.8 },
   { id: 'potted_plant_02', at: [31.1, 0, 17.1], height: 1.7, rot: 2.6 },
   { id: 'ceramic_vase_03', at: [30.9, 0.45, 24.6], height: 0.32, rot: 0.4 },
+  { id: 'ceramic_vase_04', at: [29.4, 0.45, 24.8], height: 0.26, rot: 1.3 },
   { id: 'potted_plant_02', at: [21.0, 0, 19.0], height: 1.3, rot: 1.9 },
   { id: 'ceramic_vase_01', at: [15.4, 0.76, 4.05], height: 0.46 },
+  { id: 'brass_pot_01', at: [14.8, 0.76, 4.1], height: 0.32, rot: 0.8 },
+  { id: 'brass_pot_01', at: [26.5, 0.92, 4.75], height: 0.28, rot: 1.4 },
   { id: 'ceramic_vase_01', at: [16.6, 0.5, 0.5], height: 0.7, rot: 1.0 },
-  { id: 'mid_century_lounge_chair', at: [23.4, 0, 16.3], height: 0.95, rot: 2.5 },
+  { id: 'modern_arm_chair_01', at: [23.4, 0, 16.3], height: 0.92, rot: 2.5 },
   { id: 'mid_century_lounge_chair', at: [30.4, 0, 14.1], height: 0.95, rot: Math.PI / 2 + 0.35 },
   { id: 'mid_century_lounge_chair', at: [30.4, 0, 16.4], height: 0.95, rot: Math.PI / 2 - 0.35 },
-  { id: 'mid_century_lounge_chair', at: [3.0, 0, 21.6], height: 0.95, rot: 0.6 },
+  { id: 'modern_arm_chair_01', at: [3.0, 0, 21.6], height: 0.92, rot: 0.6 },
   ...[29.3, 31.4, 33.5, 35.6, 37.7, 39.6].flatMap((z, i) => [
     { id: 'shrub_02', at: [8.2 + (i % 2) * 1.4, 0.03, z], height: 0.95, rot: i * 1.7 },
     { id: 'shrub_02', at: [22.3 + ((i + 1) % 2) * 1.4, 0.03, z], height: 0.95, rot: i * 2.3 },

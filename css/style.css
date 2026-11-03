@@ -46,17 +46,16 @@ body { overflow-x: hidden; overscroll-behavior: none; }
   transform: translate(-50%, -50%);
   max-width: none;
 }
-.still__tag {
+/* a soft shade under the captions, so light text stays legible over pale rooms */
+#still::after {
+  content: "";
   position: absolute;
-  top: calc(var(--gutter) + 6px);
-  right: var(--gutter);
-  font-family: var(--mono);
-  font-size: 9.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--warm);
-  opacity: 0.7;
-  text-shadow: 0 1px 14px rgba(0, 0, 0, 0.35);
+  inset: auto 0 0 0;
+  height: 46%;
+  background: linear-gradient(to top, rgba(20, 16, 12, 0.42), rgba(20, 16, 12, 0.14) 45%, transparent);
+}
+.still__tag {
+  display: none;
 }
 
 /* Scroll length for checkpoint 1. Later rooms extend this. */

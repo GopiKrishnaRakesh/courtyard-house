@@ -6,6 +6,8 @@ plan.jpg
 # system and tooling
 .DS_Store
 node_modules/
+__pycache__/
+*.pyc
 # Blender scene (rebuild with blender/build.py)
 blender/house.blend
 blender/house.blend1

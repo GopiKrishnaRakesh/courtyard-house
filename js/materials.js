@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 // Shared uniforms injected into every lit material.
 export const sharedUniforms = {
-  uIndoor: { value: 0.32 }, // how much sky light survives under the roof
-  uBounce: { value: 0.5 },  // warm light bounced off sunlit floors onto walls and ceilings
+  uIndoor: { value: 0.42 }, // how much sky light survives under the roof
+  uBounce: { value: 0.28 }, // natural warm light bounced off sunlit floors onto walls and ceilings
 };
 
 // Indirect light is dimmed under the roof (the HDRI has no idea there is a building).
@@ -62,7 +62,7 @@ function hook(mat, { sat = 1, bright = 1, con = 1, mean = 1 } = {}) {
     reflectedLight.indirectSpecular *= mix( 1.0, f, 0.8 );
     vec3 wN = inverseTransformDirection( normal, viewMatrix );
     float down = 0.35 + 0.65 * max( -wN.y, 0.0 );
-    reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3( 1.0, 0.8, 0.6 ) * uBounce * ia * down;
+    reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3( 1.0, 0.94, 0.86 ) * uBounce * ia * down;
   }`);
   };
   mat.customProgramCacheKey = () => 'house-hook';
@@ -74,38 +74,39 @@ export { hook as hookMaterial };
 // Material specs. `size` is the real-world width one texture tile covers, in metres
 // (UVs are written in metres by house.js).
 const SPECS = {
-  oak:        { tex: 'oak_wood_planks', size: 2.2, sat: 0.45, bright: 1.8, rough: 0.78, normal: 0.7, coat: [0.18, 0.4] },
-  limestone:  { tex: 'marble_01', size: 3.2, sat: 0.55, bright: 1.12, rough: 0.85, normal: 0.5 },
-  paving:     { tex: 'marble_01', size: 2.4, sat: 0.5, bright: 1.0, rough: 1.0, normal: 0.9 },
-  travertine: { tex: 'travertine', size: 1.8, sat: 0.85, bright: 1.08, rough: 0.55, normal: 0.35, coat: [0.3, 0.25] },
-  boucle:     { tex: 'boucle', noMap: true, size: 0.22, rough: 1.0, normal: 1.3, color: '#efe8dc', sheen: '#fff8ee' },
-  shade:      { color: '#f4ecdd', emissive: '#ffd096', emissiveIntensity: 0.75, roughness: 1.0 },
+  oak:        { tex: 'oak_wood_planks', size: 2.4, sat: 1.0, bright: 1.0, rough: 0.52, normal: 0.9, coat: [0.18, 0.3], color: '#ffffff' },
+  limestone:  { tex: 'marble_01', size: 3.2, sat: 1.0, bright: 1.0, rough: 0.75, normal: 0.7, color: '#ffffff' },
+  paving:     { tex: 'marble_01', size: 2.4, sat: 1.0, bright: 0.95, rough: 0.9, normal: 0.9, color: '#ffffff' },
+  travertine: { tex: 'travertine', size: 1.8, sat: 1.0, bright: 1.0, rough: 0.42, normal: 0.7, coat: [0.22, 0.25], color: '#ffffff' },
+  boucle:     { tex: 'boucle', size: 0.22, sat: 1.0, bright: 1.0, rough: 0.9, normal: 1.2, color: '#ffffff', sheen: '#fffdf8' },
+  shade:      { color: '#f7eedd', emissive: '#ffbf6b', emissiveIntensity: 0.9, roughness: 0.95 },
   book1:      { color: '#8c7b66', roughness: 0.75 },
   book2:      { color: '#5c5853', roughness: 0.75 },
   book3:      { color: '#c2b293', roughness: 0.75 },
   book4:      { color: '#3f4a50', roughness: 0.7 },
   book5:      { color: '#9b6a4c', roughness: 0.75 },
   book6:      { color: '#e2d9c8', roughness: 0.8 },
-  plaster:    { tex: 'white_plaster_02', size: 5.0, sat: 0.1, bright: 1.0, con: 0.2, mean: 1.0, rough: 1.0, normal: 0.35, color: '#efe8de' },
-  roof:       { tex: 'white_plaster_02', size: 5.0, sat: 0.1, bright: 1.0, con: 0.25, mean: 1.0, rough: 1.0, normal: 0.35, color: '#e9e0d3' },
-  oakVeneer:  { tex: 'white_oak_veneer', size: 1.6, sat: 0.85, bright: 1.12, rough: 0.8, normal: 0.6, coat: [0.3, 0.35] },
-  linen:      { tex: 'rough_linen', size: 0.7, sat: 0.0, bright: 1.25, rough: 1.0, normal: 0.8, color: '#efe6d8', sheen: '#fff6ea' },
-  linenWarm:  { tex: 'rough_linen', size: 0.7, sat: 0.0, bright: 1.15, rough: 1.0, normal: 0.8, color: '#c9ad88', sheen: '#f3dcc0' },
-  rug:        { tex: 'rough_linen', size: 0.45, sat: 0.0, bright: 1.1, rough: 1.0, normal: 1.0, color: '#ddd2c0', sheen: '#f6ecdc' },
-  steel:      { color: '#1d1c1b', metalness: 0.55, roughness: 0.42 },
-  brass:      { color: '#c39a5b', metalness: 1.0, roughness: 0.28 },
-  blackStone: { color: '#24211f', metalness: 0.0, roughness: 0.32 },
+  plaster:    { tex: 'white_plaster_02', size: 4.0, sat: 1.0, bright: 1.0, rough: 0.92, normal: 0.45, color: '#fcfbfa' },
+  roof:       { tex: 'white_plaster_02', size: 5.0, sat: 1.0, bright: 1.0, rough: 0.92, normal: 0.35, color: '#fcfbfa' },
+  oakVeneer:  { tex: 'white_oak_veneer', size: 1.6, sat: 1.0, bright: 1.0, rough: 0.65, normal: 0.8, coat: [0.2, 0.3], color: '#ffffff' },
+  linen:      { tex: 'rough_linen', size: 0.6, sat: 1.0, bright: 1.0, rough: 0.95, normal: 1.0, color: '#ffffff', sheen: '#fff9f0' },
+  linenWarm:  { tex: 'rough_linen', size: 0.6, sat: 1.0, bright: 0.95, rough: 0.95, normal: 1.0, color: '#d9b382', sheen: '#f5d5b0' },
+  rug:        { tex: 'rough_linen', size: 0.35, sat: 1.0, bright: 1.0, rough: 0.95, normal: 1.2, color: '#ebe2d5', sheen: '#f8f2e8' },
+  steel:      { color: '#1c1b1a', metalness: 0.6, roughness: 0.35 },
+  brass:      { color: '#cca258', metalness: 1.0, roughness: 0.25 },
+  blackStone: { color: '#22201e', metalness: 0.0, roughness: 0.28 },
   lacquer:    { color: '#141312', metalness: 0.0, roughness: 0.2, coat: [1.0, 0.06] },
-  porcelain:  { color: '#f4f1ec', metalness: 0.0, roughness: 0.25, coat: [0.8, 0.08] },
-  mirror:     { color: '#dfe3e2', metalness: 1.0, roughness: 0.04 },
-  lawn:       { tex: 'leafy_grass', size: 3.0, sat: 1.0, bright: 0.95, rough: 1.0, normal: 1.0, color: '#b4c59a' },
-  gravel:     { tex: 'gravel_floor_02', size: 1.6, sat: 0.6, bright: 1.15, rough: 1.0, normal: 1.0 },
-  bark:       { color: '#5e5145', metalness: 0.0, roughness: 0.95 },
-  foliage:    { color: '#7f8c6b', metalness: 0.0, roughness: 0.85 },
-  foliageDk:  { color: '#5e6e4b', metalness: 0.0, roughness: 0.9 },
-  hedge:      { color: '#55633f', metalness: 0.0, roughness: 0.95 },
-  lampGlow:   { color: '#fff4e0', emissive: '#ffcf8f', emissiveIntensity: 0.6, roughness: 0.6 },
-  ledGlow:    { color: '#fff6e8', emissive: '#ffe2b8', emissiveIntensity: 1.3, roughness: 0.6 },
+  porcelain:  { color: '#f7f5f0', metalness: 0.0, roughness: 0.22, coat: [0.8, 0.08] },
+  mirror:     { color: '#e6eaeb', metalness: 1.0, roughness: 0.02 },
+  lawn:       { tex: 'leafy_grass', size: 3.0, sat: 1.0, bright: 1.0, rough: 0.95, normal: 1.0, color: '#ffffff' },
+  gravel:     { tex: 'gravel_floor_02', size: 1.6, sat: 1.0, bright: 1.0, rough: 1.0, normal: 1.0, color: '#ffffff' },
+  bark:       { color: '#564638', metalness: 0.0, roughness: 0.95 },
+  foliage:    { color: '#62804b', metalness: 0.0, roughness: 0.8 },
+  foliageDk:  { color: '#486134', metalness: 0.0, roughness: 0.85 },
+  hedge:      { color: '#42592d', metalness: 0.0, roughness: 0.9 },
+  lampGlow:   { color: '#fff0d2', emissive: '#ffbf6b', emissiveIntensity: 0.9, roughness: 0.5 },
+  ledGlow:    { color: '#fff4e4', emissive: '#ffd99a', emissiveIntensity: 1.4, roughness: 0.5 },
+  fireGlow:   { color: '#3a2214', emissive: '#ff7a24', emissiveIntensity: 2.5, roughness: 0.8 },
 };
 
 // A small sprig of olive leaves drawn on a canvas, used on scattered cards to build canopies.
@@ -165,19 +166,19 @@ export class Materials {
   _make(name) {
     if (name === 'glass') {
       return new THREE.MeshPhysicalMaterial({
-        color: '#ffffff', transparent: true, opacity: 0.035, roughness: 0.0, metalness: 0,
-        envMapIntensity: 0.55, depthWrite: false, side: THREE.DoubleSide,
+        color: '#ffffff', transparent: true, opacity: 0.04, roughness: 0.0, metalness: 0,
+        envMapIntensity: 0.7, depthWrite: false, side: THREE.DoubleSide,
       });
     }
     if (name === 'sheer') {
       return hook(new THREE.MeshStandardMaterial({
-        color: '#f6f1e8', emissive: '#6b6358', transparent: true, opacity: 0.78, roughness: 1, side: THREE.DoubleSide, depthWrite: false,
+        color: '#f8f4ec', emissive: '#5e574c', transparent: true, opacity: 0.75, roughness: 1, side: THREE.DoubleSide, depthWrite: false,
       }));
     }
     if (name === 'water') {
       return hook(new THREE.MeshPhysicalMaterial({
-        color: '#123534', roughness: 0.05, metalness: 0.0,
-        envMapIntensity: 0.75,
+        color: '#122629', roughness: 0.02, metalness: 0.02,
+        envMapIntensity: 1.5,
       }));
     }
     if (name === 'leaves' || name === 'leavesDark') {
